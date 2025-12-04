@@ -93,7 +93,7 @@ const handleClickTimeline = (event) => {
 
       <!-- 時間軸 -->
       <div 
-        class="timeline-bar relative h-4 bg-gray-200 rounded-full cursor-pointer"
+        class="timeline-bar relative h-4 rounded-full cursor-pointer"
         @mousedown.prevent="emit('handle-range-start', $event)"
         @mousemove.prevent="emit('handle-range-move', $event)"
         @mouseup.prevent="emit('handle-range-end')"
@@ -174,55 +174,6 @@ const handleClickTimeline = (event) => {
           未選中標記類型。點擊時間軸會直接跳轉。
         </div>
       </div>
-
-      <!-- 節奏速度偵測 (BPM) -->
-      <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg tap-tempo-section" tabindex="0">
-        <h3 class="text-xl font-bold mb-4 text-red-600 flex items-center gap-2">🎶 節奏速度 (BPM)</h3>
-        <p class="text-sm text-gray-600 mb-3">使用鍵盤 **[Space]** 或滑鼠點擊 Tap 鍵偵測節奏。</p>
-        
-        <div class="flex items-center gap-4">
-            <button 
-                @click="emit('handle-tap-tempo')"
-                @keydown.space.prevent="emit('handle-tap-tempo')"
-                class="tap-button text-2xl font-extrabold rounded-2xl w-24 h-24 flex flex-col items-center justify-center bg-yellow-400 text-yellow-900"
-            >
-                TAP
-            </button>
-            <div class="flex-1">
-                <div class="text-5xl font-mono font-extrabold text-red-700">
-                    {{ tapTempoData.displayBPM ? parseFloat(tapTempoData.displayBPM).toFixed(0) : (currentVideo.bpm || '—') }}
-                </div>
-                <div class="text-xl font-bold text-red-700 mb-1">BPM</div>
-                <p class="tap-display-info text-gray-500">
-                    {{ tapTempoData.displayBPM ? `間隔: ${(60000 / parseFloat(tapTempoData.displayBPM)).toFixed(0)} ms` : (currentVideo.bpm ? `已儲存 BPM: ${currentVideo.bpm}` : '開始敲擊偵測') }}
-                </p>
-            </div>
-        </div>
-
-        <button 
-            @click="emit('save-bpm')"
-            :disabled="!tapTempoData.displayBPM"
-            class="save-bpm-btn mt-4 w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md"
-            :class="tapTempoData.displayBPM ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'"
-        >
-            儲存 BPM {{ tapTempoData.displayBPM ? `(${parseFloat(tapTempoData.displayBPM).toFixed(0)} BPM)` : '' }}
-        </button>
-      </div>
-
-      <!-- 影片資訊與控制 -->
-      <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg">
-        <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">⚙️ 資訊與操作</h3>
-        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">ID:</span> <span class="font-mono text-gray-800 break-all">{{ currentVideo.videoId }}</span></p>
-        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">狀態:</span> <span :class="currentVideo.isPlaying ? 'text-green-600 font-bold' : 'text-red-500'">{{ currentVideo.isPlaying ? '播放中' : '已暫停' }}</span></p>
-        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">總標記數:</span> <span class="font-bold text-indigo-600">{{ currentVideo.timeLabels.length }}</span></p>
-
-        <button 
-            @click="emit('handle-range-cancel')" 
-            class="mt-4 w-full py-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-semibold shadow-sm"
-        >
-            清除選取範圍與標記模式
-        </button>
-      </div>
     </div>
 
     <!-- 已儲存標記清單 -->
@@ -256,6 +207,53 @@ const handleClickTimeline = (event) => {
         </div>
       </div>
     </div>
+    <!-- 節奏速度偵測 (BPM) -->
+      <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg tap-tempo-section" tabindex="0">
+        <h3 class="text-xl font-bold mb-4 text-red-600 flex items-center gap-2">🎶 節奏速度 (BPM)</h3>
+        <p class="text-sm text-gray-600 mb-3">使用鍵盤 **[Space]** 或滑鼠點擊 Tap 鍵偵測節奏。</p>
+        
+        <div class="flex items-center gap-4">
+            <button 
+                @click="emit('handle-tap-tempo')"
+                @keydown.space.prevent="emit('handle-tap-tempo')"
+                class="tap-button text-2xl font-extrabold rounded-2xl w-24 h-24 flex flex-col items-center justify-center bg-yellow-400 text-yellow-900"
+            >
+                TAP
+            </button>
+            <div class="flex-1">
+                <div class="text-5xl font-mono font-extrabold text-red-700">
+                    {{ tapTempoData.displayBPM ? parseFloat(tapTempoData.displayBPM).toFixed(0) : (currentVideo.bpm || '—') }}
+                </div>
+                <div class="text-xl font-bold text-red-700 mb-1">BPM</div>
+                <p class="tap-display-info text-gray-500">
+                    {{ tapTempoData.displayBPM ? `間隔: ${(60000 / parseFloat(tapTempoData.displayBPM)).toFixed(0)} ms` : (currentVideo.bpm ? `已儲存 BPM: ${currentVideo.bpm}` : '開始敲擊偵測') }}
+                </p>
+            </div>
+        </div>
+
+        <button 
+            @click="emit('save-bpm')"
+            :disabled="!tapTempoData.displayBPM"
+            class="save-bpm-btn mt-4 w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md"
+            :class="tapTempoData.displayBPM ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'"
+        >
+            儲存 BPM {{ tapTempoData.displayBPM ? `(${parseFloat(tapTempoData.displayBPM).toFixed(0)} BPM)` : '' }}
+        </button>
+      </div>
+    <!-- 影片資訊與控制 -->
+      <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg">
+        <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">⚙️ 資訊與操作</h3>
+        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">ID:</span> <span class="font-mono text-gray-800 break-all">{{ currentVideo.videoId }}</span></p>
+        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">狀態:</span> <span :class="currentVideo.isPlaying ? 'text-green-600 font-bold' : 'text-red-500'">{{ currentVideo.isPlaying ? '播放中' : '已暫停' }}</span></p>
+        <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">總標記數:</span> <span class="font-bold text-indigo-600">{{ currentVideo.timeLabels.length }}</span></p>
+
+        <button 
+            @click="emit('handle-range-cancel')" 
+            class="mt-4 w-full py-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-semibold shadow-sm"
+        >
+            清除選取範圍與標記模式
+        </button>
+      </div>
   </div>
 </template>
 
@@ -295,6 +293,9 @@ const handleClickTimeline = (event) => {
     overflow: hidden;
     z-index: 50;
     height: 1rem; /* 匹配 h-4 (16px) */
+    /* 📌 實現要求 2: 設置明顯的底色 */
+    background-color: #e5e7eb; /* tailwind's gray-200, 作為時間軸的完整底色 */
+    border: 1px solid #d1d5db; /* 輕微邊框，使其更清晰 */
 }
 
 /* 播放頭 */

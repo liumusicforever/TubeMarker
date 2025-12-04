@@ -23,6 +23,12 @@
         "type": "question"
       },
       {
+        "start": 31,
+        "end": 40,
+        "label": "啊！",
+        "type": "summary"
+      },
+      {
         "start": 50,
         "end": 51,
         "label": "待辦：重寫這個元件",
