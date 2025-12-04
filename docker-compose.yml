@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules # 避免本地 node_modules 覆蓋容器內的
+    command: npm run serve # 啟動 Vue 開發伺服器

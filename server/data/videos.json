@@ -1,0 +1,86 @@
+[
+  {
+    "id": 1,
+    "name": "Vue 3 核心概念與 Composition API",
+    "videoId": "acvIVA9-FMQ",
+    "timeLabels": [
+      {
+        "start": 0,
+        "end": 1,
+        "label": "123",
+        "type": "default"
+      },
+      {
+        "start": 5,
+        "end": 6,
+        "label": "Vue 核心差異",
+        "type": "summary"
+      },
+      {
+        "start": 15,
+        "end": 16,
+        "label": "問：響應性原理？",
+        "type": "question"
+      },
+      {
+        "start": 50,
+        "end": 51,
+        "label": "待辦：重寫這個元件",
+        "type": "action"
+      },
+      {
+        "start": 65,
+        "end": 73,
+        "label": "疑問點 (Question)",
+        "type": "question"
+      },
+      {
+        "start": 70,
+        "end": 71,
+        "label": "相關文獻連結",
+        "type": "reference"
+      },
+      {
+        "start": 85,
+        "end": 101,
+        "label": "重點摘要 (Summary)",
+        "type": "summary"
+      }
+    ],
+    "bpm": 119,
+    "duration": 206
+  },
+  {
+    "id": 2,
+    "name": "TypeScript 完整教學：從基礎到實戰",
+    "videoId": "K544Q2kHhW8",
+    "timeLabels": [
+      {
+        "start": 10,
+        "end": 11,
+        "label": "型別系統介紹",
+        "type": "summary"
+      },
+      {
+        "start": 35,
+        "end": 36,
+        "label": "泛型 (Generics) 深入",
+        "type": "reference"
+      },
+      {
+        "start": 65,
+        "end": 66,
+        "label": "裝飾器 (Decorators) 實務",
+        "type": "action"
+      },
+      {
+        "start": 80,
+        "end": 81,
+        "label": "問：Interface vs Type",
+        "type": "question"
+      }
+    ],
+    "bpm": null,
+    "duration": 0
+  }
+]
