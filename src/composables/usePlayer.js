@@ -1,13 +1,6 @@
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 
-// --- 常量定義 (與原 script 相同) ---
-const MARKER_TYPE_MAP = {
-    'question': { class: 'type-question', hex: '#fdcb6e', displayName: '疑問點 (Question)' },
-    'summary': { class: 'type-summary', hex: '#0984e3', displayName: '重點摘要 (Summary)' },
-    'action': { class: 'type-action', hex: '#d63031', displayName: '待辦/行動 (Action)' },
-    'reference': { class: 'type-reference', hex: '#00b894', displayName: '參考資料 (Reference)' },
-    'default': { class: 'type-default', hex: '#b2bec3', displayName: '其他標記 (Other)' }
-};
+// --- 常量定義 ---
 
 const FALLBACK_VIDEO_DATA = [
     {
@@ -30,7 +23,7 @@ const FALLBACK_VIDEO_DATA = [
 
 const API_ENDPOINT = 'http://localhost:3000/api/videos';
 
-// --- Server API (從原 script 複製) ---
+// --- Server API (保持不變) ---
 const ServerAPIManager_Full = {
     async loadData() {
         console.log(`[ServerAPIManager] 嘗試從 ${API_ENDPOINT} 載入數據...`);
@@ -76,35 +69,30 @@ const ServerAPIManager_Full = {
     }
 };
 
-// --- 輔助工具函數 (Utility Functions) ---
-// 移出到這裡，讓所有組件和 usePlayer 都能使用
-const formatTime = (seconds) => {
-    const sec = Math.floor(seconds);
-    const min = Math.floor(sec / 60);
-    const remainingSec = sec % 60;
-    return `${min}:${remainingSec < 10 ? '0' : ''}${remainingSec}`;
-};
-const getMarkerColorHex = (type) => {
-    const typeInfo = MARKER_TYPE_MAP[type] || MARKER_TYPE_MAP.default;
-    return typeInfo.hex;
-};
-const getTimelineTimeFromEvent = (event, videoDuration) => {
-    if (videoDuration === 0) return 0;
-    const timeline = event.currentTarget;
-    const rect = timeline.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const width = rect.width;
-    const percentage = Math.min(1, Math.max(0, clickX / width));
-    return Math.floor(percentage * videoDuration);
-};
-
 // --- 核心組合式函數 ---
 export function usePlayer() {
+    // --- 新增常數 ---
+    const LOCAL_STORAGE_KEY = 'customMarkerTypes';
+    // 顏色池，用於為新的標記類型分配顏色
+    const COLOR_POOL = [
+        '#0984e3', // blue
+        '#fdcb6e', // yellow
+        '#d63031', // red
+        '#00b894', // green
+        '#6c5ce7', // purple
+        '#ff7675', // salmon
+        '#2d3436', // dark grey
+        '#e17055', // coral
+    ];
+
     // --- 響應式狀態 (原 data) ---
     const selectedVideoId = ref(null);
     const videoList = ref([]);
     const isLoading = ref(true);
+
+    /* eslint-disable-next-line no-unused-vars */
     const loadedPlayers = new Map(); // YT Players
+    /* eslint-disable-next-line no-unused-vars */
     const intervalIds = new Map(); // 播放器計時器
 
     // Tap Tempo 狀態
@@ -123,16 +111,124 @@ export function usePlayer() {
     });
 
     // 標記類型狀態
-    const selectedMarkerType = ref(null);
-    const markerTypes = MARKER_TYPE_MAP;
+    const markerTypes = ref({});
 
-    // --- Computed 屬性 (原 computed) ---
+    // 標記類型狀態
+    const selectedMarkerType = ref(null);
+
+    // --- 輔助工具函數 (Utility Functions) ---
+    function formatTime(seconds) {
+        const sec = Math.floor(seconds);
+        const min = Math.floor(sec / 60);
+        const remainingSec = sec % 60;
+        return `${min}:${remainingSec < 10 ? '0' : ''}${remainingSec}`;
+    }
+
+    function getTimelineTimeFromEvent(event, videoDuration) {
+        if (videoDuration === 0) return 0;
+        const timeline = event.currentTarget;
+        const rect = timeline.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const width = rect.width;
+        const percentage = Math.min(1, Math.max(0, clickX / width));
+        return Math.floor(percentage * videoDuration);
+    }
+
+    function getMarkerColorHex(type) {
+        if (!type) return '#b2bec3';
+
+        const typeInfo = markerTypes.value[type.trim().toLowerCase()];
+        return typeInfo ? typeInfo.hex : '#b2bec3';
+    }
+
+    // --- 自訂標記類型管理 ---
+
+    function loadMarkerTypes() {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                markerTypes.value = JSON.parse(stored);
+                console.log('[MarkerTypes] 成功從 Local Storage 載入。', markerTypes.value);
+            } else {
+                // 初始化預設值
+                markerTypes.value = {
+                    'question': { hex: COLOR_POOL[0], displayName: '疑問' },
+                    'summary': { hex: COLOR_POOL[1], displayName: '摘要' },
+                    'action': { hex: COLOR_POOL[2], displayName: '行動' },
+                    'reference': { hex: COLOR_POOL[3], displayName: '參考' },
+                };
+                saveMarkerTypes();
+                console.log('[MarkerTypes] Local Storage 無數據，初始化預設標記。');
+            }
+        } catch (e) {
+            console.error('[MarkerTypes] 載入 Local Storage 失敗:', e);
+            markerTypes.value = {};
+        }
+    }
+
+    function saveMarkerTypes() {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(markerTypes.value));
+            console.log('[MarkerTypes] 已儲存到 Local Storage。');
+        } catch (e) {
+            console.error('[MarkerTypes] 儲存到 Local Storage 失敗:', e);
+        }
+    }
+
+    function getOrCreateMarkerType(type) {
+        const normalizedType = type.trim().toLowerCase();
+
+        if (!normalizedType) {
+            return '#b2bec3';
+        }
+
+        if (markerTypes.value[normalizedType]) {
+            return markerTypes.value[normalizedType].hex;
+        }
+
+        const usedCount = Object.keys(markerTypes.value).length;
+        const colorIndex = usedCount % COLOR_POOL.length;
+        const newHex = COLOR_POOL[colorIndex];
+
+        markerTypes.value[normalizedType] = {
+            hex: newHex,
+            displayName: type.trim(),
+        };
+
+        saveMarkerTypes();
+        console.log(`[MarkerTypes] 新增自訂類型: ${normalizedType}, 顏色: ${newHex}`);
+
+        return newHex;
+    }
+
+    /**
+     * 處理來自 VideoDetail.vue 的新增標記類型請求 (對應 'create-new-marker-type' 事件)
+     * @param {string} type 
+     */
+    function createNewMarkerType(type) {
+        if (!type || type.trim() === '') {
+            console.warn('[MarkerTypes] 嘗試新增空類型，操作取消。');
+            return;
+        }
+
+        const normalizedType = type.trim().toLowerCase();
+
+        // 確保類型存在並獲取其顏色（如果不存在則創建）
+        getOrCreateMarkerType(type);
+
+        // 創建後自動將其設為當前選中類型 (符合用戶輸入並新增/選中的預期行為)
+        setSelectedMarkerType(normalizedType);
+
+        console.log(`[MarkerTypes] 已新增並選中類型: ${type.trim()}`);
+    }
+
+
+    // --- Computed 屬性 ---
     const currentVideo = computed(() => {
         if (!selectedVideoId.value) return null;
         return videoList.value.find(v => v.id === selectedVideoId.value);
     });
 
-    // 計算選取區間的視覺化樣式
     const selectionRangeStyle = computed(() => {
         const video = currentVideo.value;
         if (!video || video.duration === 0) return { display: 'none' };
@@ -147,8 +243,8 @@ export function usePlayer() {
         const startPercent = (start / video.duration) * 100;
         const endPercent = (end / video.duration) * 100;
 
-        const typeKey = selectedMarkerType.value || 'default';
-        const color = MARKER_TYPE_MAP[typeKey].hex;
+        const typeKey = selectedMarkerType.value;
+        const color = getMarkerColorHex(typeKey) || '#b2bec3';
 
         return {
             left: `${startPercent}%`,
@@ -157,65 +253,82 @@ export function usePlayer() {
         };
     });
 
-    // 分組標記點
     const groupedMarkers = computed(() => {
         if (!currentVideo.value) return {};
 
         const groups = {};
-        const types = Object.keys(MARKER_TYPE_MAP);
+        const types = Object.keys(markerTypes.value);
 
         types.forEach(type => {
             groups[type] = {
-                displayName: MARKER_TYPE_MAP[type].displayName,
-                colorHex: MARKER_TYPE_MAP[type].hex,
+                displayName: markerTypes.value[type].displayName,
+                colorHex: markerTypes.value[type].hex,
+                icon: markerTypes.value[type].displayName[0] || 'I',
                 markers: []
             };
         });
 
         currentVideo.value.timeLabels.forEach(label => {
-            const type = label.type in MARKER_TYPE_MAP ? label.type : 'default';
+            const type = label.type.trim().toLowerCase();
+
+            if (!groups[type]) {
+                getOrCreateMarkerType(type);
+
+                groups[type] = {
+                    displayName: markerTypes.value[type].displayName,
+                    colorHex: markerTypes.value[type].hex,
+                    icon: markerTypes.value[type].displayName[0] || 'I',
+                    markers: []
+                };
+            }
+
             if (typeof label.start === 'number' && typeof label.end === 'number') {
                 groups[type].markers.push(label);
             }
         });
 
         const orderedGroups = {};
-        types.forEach(type => {
-            if (groups[type].markers.length > 0) {
-                groups[type].markers.sort((a, b) => a.start - b.start);
-                orderedGroups[type] = groups[type];
-            }
-        });
+        Object.keys(groups)
+            .sort((a, b) => a.localeCompare(b))
+            .forEach(type => {
+                if (groups[type].markers.length > 0) {
+                    groups[type].markers.sort((a, b) => a.start - b.start);
+                    orderedGroups[type] = groups[type];
+                }
+            });
 
         return orderedGroups;
     });
 
-    // --- 核心方法 (原 methods) ---
+    // --- 核心方法 (YT 播放器控制) ---
+    function getVidoeIndex(videoId) {
+        return videoList.value.findIndex(v => v.id === videoId);
+    }
 
-    // --- YT 播放器相關 (原 methods) ---
-    const getVidoeIndex = (videoId) => videoList.value.findIndex(v => v.id === videoId);
-
-    const updateTime = (videoId) => {
+    function updateTime(videoId) {
         const player = loadedPlayers.get(videoId);
         const index = getVidoeIndex(videoId);
         if (player && index !== -1 && typeof player.getCurrentTime === 'function') {
             videoList.value[index].currentTime = Math.floor(player.getCurrentTime());
         }
-    };
-    const stopTimer = (videoId) => {
+    }
+
+    function stopTimer(videoId) {
         const id = intervalIds.get(videoId);
         if (id) {
             clearInterval(id);
             intervalIds.delete(videoId);
         }
-    };
-    const startTimer = (videoId) => {
+    }
+
+    function startTimer(videoId) {
         if (!intervalIds.has(videoId)) {
             const id = setInterval(() => updateTime(videoId), 500);
             intervalIds.set(videoId, id);
         }
-    };
-    const onPlayerStateChangeWithId = (event, videoId) => {
+    }
+
+    function onPlayerStateChangeWithId(event, videoId) {
         const index = getVidoeIndex(videoId);
         if (index === -1) return;
         const PlayerState = window.YT.PlayerState;
@@ -229,13 +342,12 @@ export function usePlayer() {
             stopTimer(videoId);
             if (newState === PlayerState.ENDED) { videoList.value[index].currentTime = 0; }
         }
-    };
-    // --- 追蹤後的 onPlayerReadyWithId ---
-    const onPlayerReadyWithId = (event, videoId) => {
+    }
+
+    function onPlayerReadyWithId(event, videoId) {
         const index = getVidoeIndex(videoId);
         if (index === -1) return;
 
-        // **新增追蹤**：如果看到這個訊息，表示播放器已成功初始化並可用！
         console.log(`✅ [YT Player Ready] ID: ${videoId}, 標題: ${event.target.getVideoData().title}`);
 
         const duration = Math.floor(event.target.getDuration());
@@ -248,25 +360,22 @@ export function usePlayer() {
             }
             ServerAPIManager_Full.saveData(videoList.value);
         }
-    };
-    // --- 追蹤後的 createPlayer ---
-    // 新：接收兩個參數，並將 YT 的 videoId 傳入
-    const createPlayer = (videoId, ytVideoId) => {
-        const domId = `player-preview-${videoId}`; // 直接使用正確的 DOM ID
+    }
+
+    function createPlayer(videoId, ytVideoId) {
+        const domId = `player-preview-${videoId}`;
         const playerDom = document.getElementById(domId);
 
         if (loadedPlayers.has(videoId)) {
-            // 如果已經載入，就不需重複初始化 (這應該不會發生，但以防萬一)
             return;
         }
 
         if (playerDom) {
             console.log(`➡️ [Create Player] 嘗試初始化 ID: ${videoId}, YT ID: ${ytVideoId} 到 DOM: ${domId}`);
-            const player = new window.YT.Player(domId, { // 傳入 DOM ID
-                // ✅ 關鍵修正：將 YouTube 影片 ID 傳入
+            const player = new window.YT.Player(domId, {
                 videoId: ytVideoId,
                 playerVars: {
-                    controls: 1, // 顯示播放控制項
+                    controls: 1,
                     rel: 0,
                     fs: 1,
                 },
@@ -279,16 +388,16 @@ export function usePlayer() {
         } else {
             console.warn(`❌ [Create Player] 找不到 DOM 元素來初始化 ID: ${videoId}。跳過。`);
         }
-    };
-    const initAllPlayers = () => {
+    }
+
+    function initAllPlayers() {
         videoList.value.forEach(video => {
-            // ✅ 新呼叫：傳入 自訂ID (video.id) 和 YouTube ID (video.videoId)
             createPlayer(video.id, video.videoId);
         });
-    };
+    }
 
-    // --- BPM 相關 (原 methods) ---
-    const calculateBPM = (times) => {
+    // --- BPM 相關 ---
+    function calculateBPM(times) {
         if (times.length < 3) return;
         let intervals = [];
         for (let i = 1; i < times.length; i++) {
@@ -298,13 +407,15 @@ export function usePlayer() {
         const averageInterval = sumIntervals / intervals.length;
         const calculatedBPM = 60000 / averageInterval;
         tapTempoData.value.displayBPM = calculatedBPM.toFixed(1);
-    };
-    const resetTapTempo = () => {
+    }
+
+    function resetTapTempo() {
         tapTempoData.value.tapTimes = [];
         tapTempoData.value.displayBPM = null;
         console.log("Tap Tempo 已重設。");
-    };
-    const handleTapTempo = () => {
+    }
+
+    function handleTapTempo() {
         const now = performance.now();
         const currentTimes = tapTempoData.value.tapTimes;
 
@@ -323,8 +434,9 @@ export function usePlayer() {
         if (currentTimes.length >= 3) {
             calculateBPM(currentTimes);
         }
-    };
-    const saveBPM = () => {
+    }
+
+    function saveBPM() {
         if (!currentVideo.value || !tapTempoData.value.displayBPM) return;
 
         const newBPM = Math.round(parseFloat(tapTempoData.value.displayBPM));
@@ -336,24 +448,14 @@ export function usePlayer() {
             console.log(`影片 ID ${currentVideo.value.id} 的 BPM 已儲存為 ${newBPM} (Server 儲存)`);
         }
         resetTapTempo();
-    };
+    }
 
-    // --- 播放器/導航控制 (原 methods) ---
-    const togglePlay = (videoId) => {
+    // --- 播放器/導航控制 ---
+    function togglePlay(videoId) {
         const player = loadedPlayers.get(videoId);
 
-        // 1. 檢查播放器實例是否存在
-        if (!player) {
-            console.warn(`[togglePlay] 影片 ID ${videoId} 的播放器實例不存在。`);
-            return;
-        }
-
-        // 2. 檢查關鍵方法是否存在，確保播放器已準備好
-        // 如果 player.getPlayerState 不是一個函數，則播放器尚未準備就緒，直接返回或等待。
-        if (typeof player.getPlayerState !== 'function') {
-            console.warn(`[togglePlay] 影片 ID ${videoId} 的播放器尚未準備就緒 (getPlayerState 不可用)。`);
-            // 可選：如果你希望它在準備好後自動播放，則需要更複雜的狀態管理。
-            // 對於簡單的切換，這裡直接返回是最安全的。
+        if (!player || typeof player.getPlayerState !== 'function') {
+            console.warn(`[togglePlay] 影片 ID ${videoId} 的播放器尚未準備就緒。`);
             return;
         }
 
@@ -366,7 +468,6 @@ export function usePlayer() {
             videoList.value.forEach(v => {
                 if (v.id !== videoId && v.isPlaying) {
                     const otherPlayer = loadedPlayers.get(v.id);
-                    // 同樣的，在暫停其他播放器時也應檢查方法是否存在
                     if (otherPlayer && typeof otherPlayer.pauseVideo === 'function') {
                         otherPlayer.pauseVideo();
                     }
@@ -374,26 +475,25 @@ export function usePlayer() {
             });
             player.playVideo();
         }
-    };
-    // --- 修正後的 jumpToTime ---
-    const jumpToTime = (videoId, time) => {
+    }
+
+    function jumpToTime(videoId, time) {
         const player = loadedPlayers.get(videoId);
         const index = getVidoeIndex(videoId);
 
-        // **關鍵檢查點**：確認 seekTo 方法和 getPlayerState 方法均已掛載
         if (player && index !== -1 && typeof player.seekTo === 'function') {
             player.seekTo(time, true);
             videoList.value[index].currentTime = time;
 
-            // 確保可以檢查播放狀態
             if (typeof player.getPlayerState === 'function' && player.getPlayerState() !== window.YT.PlayerState.PLAYING) {
                 togglePlay(videoId);
             }
         } else {
             console.warn(`[jumpToTime] 影片 ID ${videoId} 的播放器尚未準備好 (seekTo 不可用)。`);
         }
-    };
-    const selectVideo = (videoId) => {
+    }
+
+    function selectVideo(videoId) {
         videoList.value.forEach(v => {
             if (v.id !== videoId && v.isPlaying) {
                 const otherPlayer = loadedPlayers.get(v.id);
@@ -403,23 +503,9 @@ export function usePlayer() {
         resetTapTempo();
         selectedVideoId.value = videoId;
         selectedMarkerType.value = null;
+    }
 
-        nextTick(() => {
-            const tapTempoSection = document.querySelector('.tap-tempo-section');
-            if (tapTempoSection) {
-                tapTempoSection.focus();
-            }
-
-            // 修正：移除對 YT 播放器內部結構的存取 (例如 .h.className)。
-            // 直接檢查是否有影片，然後呼叫 createPlayer，讓它處理初始化/重新連接 DOM 的邏輯。
-            // const video = currentVideo.value;
-            // if (video) {
-            //     createPlayer(video.id, video.videoId); // 確保詳情頁的播放器已初始化或重新綁定
-            // }
-        });
-    };
-
-    const goBackToList = () => {
+    function goBackToList() {
         if (currentVideo.value) {
             const player = loadedPlayers.get(currentVideo.value.id);
             if (player) player.pauseVideo();
@@ -427,61 +513,63 @@ export function usePlayer() {
         handleRangeCancel();
         selectedMarkerType.value = null;
         selectedVideoId.value = null;
-    };
+    }
 
-    // --- 時間軸互動/標記相關 (原 methods) ---
-    const setSelectedMarkerType = (type) => {
+    // --- 時間軸互動/標記相關 ---
+    function setSelectedMarkerType(type) {
         if (selectedMarkerType.value === type) {
             selectedMarkerType.value = null;
             console.log(`標記模式已取消。`);
         } else {
             selectedMarkerType.value = type;
-            console.log(`已選擇標記屬性: ${MARKER_TYPE_MAP[type].displayName}。現在拖曳即可新增標記。`);
+            const displayName = markerTypes.value[type] ? markerTypes.value[type].displayName : type;
+            console.log(`已選擇標記屬性: ${displayName}。現在拖曳即可新增標記。`);
         }
-    };
-    const handleRangeCancel = () => {
+    }
+
+    function handleRangeCancel() {
         rangeData.value.isSelecting = false;
         rangeData.value.selectionStart = 0;
         rangeData.value.selectionEnd = 0;
         rangeData.value.selectedDuration = 0;
-        // 注意: 這裡不應該清除 selectedMarkerType，因為用戶可能想在單點擊失敗後重試
-        // selectedMarkerType.value = null;
-    };
+    }
 
-    const promptForLabel = (videoId, start, end, type) => {
-        const typeInfo = MARKER_TYPE_MAP[type];
+    function promptForLabel(videoId, start, end, type) {
+        getOrCreateMarkerType(type);
+        const typeInfo = markerTypes.value[type];
+
         const defaultLabel = `${typeInfo.displayName} 於 ${formatTime(start)}`;
-        const label = prompt(`請輸入標記內容 (類型: ${typeInfo.displayName}, 時間: ${formatTime(start)} ~ ${formatTime(end)}):`, defaultLabel);
 
-        if (label && label.trim().length > 0) {
-            addMarkerWithLabel(videoId, start, end, type, label.trim());
-        } else if (label !== null) {
-            // 注意: 這裡使用 alert()，雖然在 Canvas 環境中應盡量避免，但這裡是從您提供的原始碼複製過來的。
-            // 建議將其替換為自定義的 modal/toast 通知。
+        const newTypeLabel = prompt(`請輸入標記內容 (類型: ${typeInfo.displayName}, 時間: ${formatTime(start)} ~ ${formatTime(end)}):`, defaultLabel);
+
+        if (newTypeLabel && newTypeLabel.trim().length > 0) {
+            addMarkerWithLabel(videoId, start, end, type, newTypeLabel.trim());
+        } else if (newTypeLabel !== null) {
             alert("標記內容不能為空，已取消新增。");
         } else {
             console.log("使用者取消新增標記。");
         }
 
-        // 無論新增或取消，都清除選區和選中的類型
         handleRangeCancel();
         selectedMarkerType.value = null;
-    };
+    }
 
-    const addMarkerWithLabel = (videoId, start, end, type, label) => {
+    function addMarkerWithLabel(videoId, start, end, type, label) {
         const index = getVidoeIndex(videoId);
         if (index === -1) return;
 
-        const newMarker = { start: start, end: end, label: label, type: type };
+        const finalType = type.trim().toLowerCase();
+
+        const newMarker = { start: start, end: end, label: label, type: finalType };
 
         const updatedLabels = [...videoList.value[index].timeLabels, newMarker].sort((a, b) => a.start - b.start);
         videoList.value[index].timeLabels = updatedLabels;
 
         ServerAPIManager_Full.saveData(videoList.value);
-        console.log(`新增標記 (ID: ${videoId}): "${label}" [${type}] 在 ${start}~${end} 秒 (Server 儲存)`);
-    };
+        console.log(`新增標記 (ID: ${videoId}): "${label}" [${finalType}] 在 ${start}~${end} 秒 (Server 儲存)`);
+    }
 
-    const handleRangeStart = (event) => {
+    function handleRangeStart(event) {
         if (event.button !== 0 || event.target.closest('.timeline-range-marker')) return;
 
         const time = getTimelineTimeFromEvent(event, currentVideo.value.duration);
@@ -495,9 +583,9 @@ export function usePlayer() {
             const player = loadedPlayers.get(currentVideo.value.id);
             if (player) player.pauseVideo();
         }
-    };
+    }
 
-    const handleRangeMove = (event) => {
+    function handleRangeMove(event) {
         if (!rangeData.value.isSelecting) return;
         if (!currentVideo.value) return;
 
@@ -511,9 +599,9 @@ export function usePlayer() {
         if (player && typeof player.seekTo === 'function') {
             player.seekTo(time, false);
         }
-    };
+    }
 
-    const handleRangeEnd = () => {
+    function handleRangeEnd() {
         if (!rangeData.value.isSelecting) return;
         if (!currentVideo.value) return;
 
@@ -531,7 +619,7 @@ export function usePlayer() {
                 promptForLabel(videoId, minTime, minTime + 1, selectedMarkerType.value);
             } else {
                 jumpToTime(videoId, minTime);
-                handleRangeCancel(); // 跳轉後清空選區視覺化
+                handleRangeCancel();
             }
         } else {
             // 情況 2: 有效拖曳區間
@@ -539,47 +627,44 @@ export function usePlayer() {
                 promptForLabel(videoId, minTime, maxTime, selectedMarkerType.value);
             } else {
                 jumpToTime(videoId, minTime);
-                handleRangeCancel(); // 跳轉後清空選區視覺化
+                handleRangeCancel();
             }
-            // 如果成功新增標記，promptForLabel 會調用 handleRangeCancel
         }
         rangeData.value.isSelecting = false;
-    };
+    }
 
-    const handleClickTimeline = (event) => {
-        // 如果是在進行拖曳 (rangeData.isSelecting 已經被 handleRangeEnd 設為 false)，則忽略
-        // 這裡主要用於處理單點擊的場景 (在 handleRangeEnd 中處理)
+    function handleClickTimeline(event) {
         if (rangeData.value.selectedDuration < 1 && !rangeData.value.isSelecting) {
             const time = getTimelineTimeFromEvent(event, currentVideo.value.duration);
 
             if (selectedMarkerType.value) {
-                // 如果有選中標記類型，則新增單點標記
                 promptForLabel(currentVideo.value.id, time, time + 1, selectedMarkerType.value);
             } else {
-                // 否則，執行跳轉
                 jumpToTime(currentVideo.value.id, time);
             }
         }
-    };
+    }
 
-    // --- 視覺化計算 (原 methods) ---
-    const calculateProgressBarWidth = (video) => {
+    // --- 視覺化計算 ---
+    function calculateProgressBarWidth(video) {
         if (video.duration === 0) return '0%';
         const percentage = (video.currentTime / video.duration) * 100;
         return `${Math.min(percentage, 100)}%`;
-    };
-    const calculateMarkerPosition = (start, duration) => {
+    }
+
+    function calculateMarkerPosition(start, duration) {
         if (duration === 0) return '0%';
         const position = (start / duration) * 100;
         return `${position}%`;
-    };
-    const calculateMarkerWidth = (start, end, duration) => {
+    }
+
+    function calculateMarkerWidth(start, end, duration) {
         if (duration === 0) return '0%';
         const width = ((end - start) / duration) * 100;
         return `${width}%`;
-    };
+    }
 
-    // --- 生命周期 (原 mounted & beforeUnmount) ---
+    // --- 生命周期 ---
     const loadVideoData = async () => {
         isLoading.value = true;
         videoList.value = await ServerAPIManager_Full.loadData();
@@ -587,9 +672,9 @@ export function usePlayer() {
     };
 
     onMounted(async () => {
+        loadMarkerTypes();
         await loadVideoData();
 
-        // **新增追蹤**
         console.log(`[Lifecycle] 數據已載入。`);
 
         const vm = { initAllPlayers };
@@ -618,8 +703,9 @@ export function usePlayer() {
     // --- 導出 ---
     return {
         // 狀態
-        selectedVideoId, videoList, isLoading, markerTypes,
+        selectedVideoId, videoList, isLoading,
         tapTempoData, rangeData, selectedMarkerType,
+        markerTypes,
 
         // Computed
         currentVideo, selectionRangeStyle, groupedMarkers,
@@ -637,5 +723,9 @@ export function usePlayer() {
         // 視覺化/格式化工具
         formatTime, getMarkerColorHex, calculateProgressBarWidth,
         calculateMarkerPosition, calculateMarkerWidth,
+
+        // 標記類型管理
+        getOrCreateMarkerType,
+        createNewMarkerType, // <<< 新增的類型創建函數
     };
 }

@@ -15,6 +15,9 @@ const {
   // 核心方法
   selectVideo, goBackToList, togglePlay, jumpToTime, 
 
+  // 🎯 修正點：在這裡解構出 createNewMarkerType
+  createNewMarkerType, 
+  
   // 時間軸互動
   setSelectedMarkerType, handleRangeStart, handleRangeMove, 
   handleRangeEnd, handleRangeCancel, handleClickTimeline,
@@ -81,6 +84,8 @@ const {
         @handle-tap-tempo="handleTapTempo"
         @save-bpm="saveBPM"
         @jump-to-time="jumpToTime"
+        
+        @create-new-marker-type="createNewMarkerType"
       />
     </div>
   </div>

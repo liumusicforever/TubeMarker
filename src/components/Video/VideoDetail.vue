@@ -1,10 +1,7 @@
 <script setup>
-// [ESLint Fix]: 告訴 ESLint 這是 Vue 3 的 <script setup> 環境，
-// defineProps 和 defineEmits 是可用的全局宏，從而解決 'no-undef' 錯誤。
 /* eslint-disable no-undef */
 
-// 移除 import { computed } from 'vue'; 因為 videoPlayerId 可以直接定義為 computed 屬性
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 
 // 定義 Props
 const props = defineProps({
@@ -21,7 +18,7 @@ const props = defineProps({
   getMarkerColorHex: { type: Function, required: true },
   calculateProgressBarWidth: { type: Function, required: true },
   calculateMarkerPosition: { type: Function, required: true },
-  calculateMarkerWidth: { type: Function, required: true },
+  calculateMarkerWidth: { type: Function, required: true }, // <<-- ⚠️ 修正點：這裡補上逗號
 });
 
 // 定義 Emits
@@ -37,21 +34,81 @@ const emit = defineEmits([
   'handle-tap-tempo',
   'save-bpm',
   'jump-to-time',
+  'create-new-marker-type', // <<< 新增：創建新的標記類型
 ]);
 
-// 這裡使用 computed 是正確的，因為 currentVideo.id 可能是響應式的
-// 如果 currentVideo 改變，videoPlayerId 也會隨之改變。
 const videoPlayerId = computed(() => `player-preview-${props.currentVideo.id}`);
 
-// 為了讓 @click.stop.prevent="handleClickTimeline" 正常工作，
-// 我們需要一個方法來觸發 emit，而不是直接在模板中嵌入複雜的邏輯。
-// 這裡將點擊時間軸的邏輯封裝起來。
+// --- 新增狀態管理 ---
+const newMarkerTypeInput = ref(''); // 用於綁定輸入框的值
+// 使用 setTimeout 來延遲 blur 事件，以便點擊下拉選單項目
+const isDropdownOpen = ref(false); 
+
+// 可用的標記類型清單 (用於下拉選單，排除輸入框內容匹配的)
+const availableMarkerTypes = computed(() => {
+    // 將 markerTypes 物件轉換為陣列
+    const typesArray = Object.keys(props.markerTypes).map(key => ({
+        key: key,
+        displayName: props.markerTypes[key].displayName,
+        hex: props.markerTypes[key].hex
+    }));
+
+    const filterText = newMarkerTypeInput.value.trim().toLowerCase();
+
+    // 篩選出與輸入框內容匹配且非目前已選中的類型
+    return typesArray.filter(type => 
+        type.displayName.toLowerCase().includes(filterText) && 
+        type.key !== props.selectedMarkerType // 排除當前選中的
+    ).slice(0, 8); // 限制清單長度
+});
+
+// 當用戶點擊下拉選單中的類型時 (精確選擇)
+const selectExistingType = (key) => {
+    emit('set-marker-type', key); 
+    newMarkerTypeInput.value = ''; 
+    isDropdownOpen.value = false; 
+};
+
+// 處理新增/選中按鈕點擊 (現在僅用於新增新類型，或清除輸入如果匹配到現有類型)
+const handleAddOrSelectType = () => {
+    const inputValue = newMarkerTypeInput.value.trim();
+
+    if (!inputValue) return;
+
+    // 1. 檢查是否是已存在的類型（正規化名稱）
+    const normalizedKey = inputValue.toLowerCase();
+    
+    // 🎯 根據使用者要求：如果已存在，則不執行選中動作 (精確選擇)
+    if (props.markerTypes[normalizedKey]) {
+        newMarkerTypeInput.value = ''; // 清空輸入
+        isDropdownOpen.value = false; // 關閉選單
+        return; // 終止執行，不發出 set-marker-type
+    } else {
+        // 2. 如果是新的類型，發射事件給 usePlayer 創建它
+        emit('create-new-marker-type', inputValue);
+    }
+
+    newMarkerTypeInput.value = '';
+    isDropdownOpen.value = false;
+};
+
+
 const handleClickTimeline = (event) => {
     // 只有在沒有選中標記類型 (即不處於標記模式) 時才跳轉
     if (!props.selectedMarkerType) {
         emit('handle-click-timeline', event);
     }
-    // 如果處於標記模式，點擊行為會被 mousedown/mousemove/mouseup 覆蓋
+};
+
+const handleInputFocus = () => {
+    isDropdownOpen.value = true;
+};
+
+const handleInputBlur = () => {
+    // 延遲關閉，給點擊下拉選單項目留出時間
+    setTimeout(() => {
+        isDropdownOpen.value = false;
+    }, 150);
 };
 
 </script>
@@ -76,22 +133,16 @@ const handleClickTimeline = (event) => {
         {{ currentVideo.isPlaying ? '❚❚ 暫停' : '▶ 播放' }}
       </button>
     </div>
-
-    <!-- 影片播放器容器 -->
     <div class="aspect-video bg-black rounded-xl shadow-2xl overflow-hidden mb-6">
-      <!-- 這是 YouTube Iframe API 載入播放器的 DOM 節點 -->
       <div :id="videoPlayerId" class="w-full h-full"></div>
     </div>
 
-    <!-- 時間軸與控制項 -->
     <div class="bg-white p-5 rounded-xl shadow-lg mb-8">
-      <!-- 時間顯示 -->
       <div class="flex justify-between text-sm font-mono mb-3 text-gray-700 font-semibold">
         <span>{{ formatTime(currentVideo.currentTime) }}</span>
         <span>{{ formatTime(currentVideo.duration) }}</span>
       </div>
 
-      <!-- 時間軸 -->
       <div 
         class="timeline-bar relative h-4 rounded-full cursor-pointer"
         @mousedown.prevent="emit('handle-range-start', $event)"
@@ -100,20 +151,17 @@ const handleClickTimeline = (event) => {
         @mouseleave.prevent="rangeData.isSelecting ? emit('handle-range-cancel') : null"
         @click.stop.prevent="handleClickTimeline"
       >
-        <!-- 緩衝/進度條 -->
         <div 
           class="absolute top-0 left-0 h-full bg-blue-500/50 rounded-full" 
           :style="{ width: calculateProgressBarWidth(currentVideo) }"
         ></div>
 
-        <!-- 拖曳選取範圍 -->
         <div 
           v-show="rangeData.selectedDuration > 0 || rangeData.isSelecting"
           class="selection-range rounded-full"
           :style="selectionRangeStyle"
         ></div>
         
-        <!-- 標記區間 -->
         <button
           v-for="(marker, idx) in currentVideo.timeLabels"
           :key="idx"
@@ -123,16 +171,14 @@ const handleClickTimeline = (event) => {
             width: calculateMarkerWidth(marker.start, marker.end, currentVideo.duration),
             backgroundColor: getMarkerColorHex(marker.type),
             opacity: 0.9,
-            color: ['question', 'reference'].includes(marker.type) ? '#333' : 'white', // 淺色背景使用深色文字
+            color: ['question', 'reference'].includes(marker.type) ? '#333' : 'white', 
           }"
           :title="`${marker.label} (${formatTime(marker.start)} - ${formatTime(marker.end)})`"
           @click.stop="emit('jump-to-time', currentVideo.id, marker.start)"
         >
-          <!-- 只有區間夠長才顯示標籤 -->
           <span v-if="(marker.end - marker.start) > 2.5" class="truncate max-w-full px-1">{{ marker.label }}</span>
         </button>
 
-        <!-- 播放頭標記 -->
         <div 
           class="current-time-marker" 
           :style="{ left: calculateProgressBarWidth(currentVideo) }"
@@ -140,14 +186,13 @@ const handleClickTimeline = (event) => {
       </div>
     </div>
 
-    <!-- 標記與 BPM 區塊 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- 標記類型選擇 -->
       <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg">
         <h3 class="text-xl font-bold mb-4 text-indigo-700 flex items-center gap-2">🏷️ 標記類型</h3>
         <p class="text-sm text-gray-600 mb-4">選中類型後，在時間軸上**拖曳**即可建立標記區間。</p>
-        <div class="flex flex-wrap gap-3">
+
+        <div class="flex flex-wrap gap-3 mb-4">
           <button 
             v-for="(type, key) in markerTypes" 
             :key="key"
@@ -161,7 +206,45 @@ const handleClickTimeline = (event) => {
             {{ type.displayName.split(' ')[0] }}
           </button>
         </div>
-        
+
+        <div class="relative w-full mb-4" @blur.capture="handleInputBlur">
+            <input
+                type="text"
+                v-model="newMarkerTypeInput"
+                @focus="handleInputFocus"
+                @keydown.enter.prevent="handleAddOrSelectType"
+                placeholder="輸入新的或選擇已有的屬性名稱..."
+                class="w-full p-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 transition duration-150 pr-24"
+            />
+            <button
+                @mousedown.prevent="handleAddOrSelectType"
+                :disabled="!newMarkerTypeInput.trim()"
+                class="absolute right-0 top-0 h-full px-3 text-white rounded-r-lg transition-colors disabled:bg-gray-400 text-sm font-semibold"
+                :class="newMarkerTypeInput.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400'"
+                title="新增此屬性"
+            >
+                新增
+            </button>
+            
+            <div 
+                v-show="isDropdownOpen && availableMarkerTypes.length > 0 && newMarkerTypeInput.trim()"
+                class="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-xl mt-1 overflow-hidden max-h-48 overflow-y-auto"
+            >
+                <div 
+                    v-for="type in availableMarkerTypes"
+                    :key="type.key"
+                    @mousedown.prevent="selectExistingType(type.key)"
+                    class="flex items-center p-3 cursor-pointer hover:bg-indigo-50 transition-colors"
+                >
+                    <span 
+                        class="inline-block w-4 h-4 rounded-full mr-3 flex-shrink-0" 
+                        :style="{ backgroundColor: type.hex }"
+                    ></span>
+                    <span class="truncate text-gray-800">{{ type.displayName }}</span>
+                    <span class="ml-auto text-xs text-gray-500"> (點擊選擇)</span>
+                </div>
+            </div>
+        </div>
         <div 
           v-if="selectedMarkerType" 
           class="marking-status-display text-sm font-medium mt-4"
@@ -174,40 +257,7 @@ const handleClickTimeline = (event) => {
           未選中標記類型。點擊時間軸會直接跳轉。
         </div>
       </div>
-    </div>
 
-    <!-- 已儲存標記清單 -->
-    <div class="mt-8 bg-white p-5 rounded-xl shadow-lg">
-      <h3 class="text-2xl font-bold mb-5 text-gray-800">📋 已儲存標記清單</h3>
-      
-      <div v-if="currentVideo.timeLabels.length === 0" class="text-gray-500 p-6 border-4 border-dashed border-gray-200 rounded-xl text-center text-lg">
-        此影片尚未有任何標記。
-      </div>
-
-      <div v-for="(group, type) in groupedMarkers" :key="type" class="mb-8 last:mb-0">
-        <h4 class="text-xl font-bold mb-4 border-b-4 pb-2 flex items-center gap-2" :style="{ borderColor: group.colorHex, color: group.colorHex }">
-            <span class="text-3xl">{{ group.icon || 'ℹ️' }}</span>
-            {{ group.displayName }} ({{ group.markers.length }})
-        </h4>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <button 
-            v-for="marker in group.markers"
-            :key="marker.start"
-            class="marker-jump-btn text-left flex flex-col transition duration-150 ease-in-out"
-            :style="{ backgroundColor: `${group.colorHex}20`, borderLeft: `5px solid ${group.colorHex}` }"
-            @click="emit('jump-to-time', currentVideo.id, marker.start)"
-          >
-            <div class="flex items-center mb-1">
-              <span class="time-stamp font-mono text-xs" :style="{ color: getMarkerColorHex(marker.type) }">
-                {{ formatTime(marker.start) }} - {{ formatTime(marker.end) }}
-              </span>
-            </div>
-            <p class="text-gray-800 text-base font-medium truncate">{{ marker.label }}</p>
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- 節奏速度偵測 (BPM) -->
       <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg tap-tempo-section" tabindex="0">
         <h3 class="text-xl font-bold mb-4 text-red-600 flex items-center gap-2">🎶 節奏速度 (BPM)</h3>
         <p class="text-sm text-gray-600 mb-3">使用鍵盤 **[Space]** 或滑鼠點擊 Tap 鍵偵測節奏。</p>
@@ -240,7 +290,7 @@ const handleClickTimeline = (event) => {
             儲存 BPM {{ tapTempoData.displayBPM ? `(${parseFloat(tapTempoData.displayBPM).toFixed(0)} BPM)` : '' }}
         </button>
       </div>
-    <!-- 影片資訊與控制 -->
+
       <div class="col-span-1 bg-white p-5 rounded-xl shadow-lg">
         <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">⚙️ 資訊與操作</h3>
         <p class="text-sm mb-2 p-2 bg-gray-50 rounded"><span class="font-medium text-gray-600">ID:</span> <span class="font-mono text-gray-800 break-all">{{ currentVideo.videoId }}</span></p>
@@ -254,10 +304,43 @@ const handleClickTimeline = (event) => {
             清除選取範圍與標記模式
         </button>
       </div>
+    </div>
+
+    <div class="mt-8 bg-white p-5 rounded-xl shadow-lg">
+      <h3 class="text-2xl font-bold mb-5 text-gray-800">📋 已儲存標記清單</h3>
+      
+      <div v-if="currentVideo.timeLabels.length === 0" class="text-gray-500 p-6 border-4 border-dashed border-gray-200 rounded-xl text-center text-lg">
+        此影片尚未有任何標記。
+      </div>
+
+      <div v-for="(group, type) in groupedMarkers" :key="type" class="mb-8 last:mb-0">
+        <h4 class="text-xl font-bold mb-4 border-b-4 pb-2 flex items-center gap-2" :style="{ borderColor: group.colorHex, color: group.colorHex }">
+            <span class="text-3xl">{{ group.icon || 'ℹ️' }}</span>
+            {{ group.displayName }} ({{ group.markers.length }})
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button 
+            v-for="marker in group.markers"
+            :key="marker.start"
+            class="marker-jump-btn text-left flex flex-col transition duration-150 ease-in-out"
+            :style="{ backgroundColor: `${group.colorHex}20`, borderLeft: `5px solid ${group.colorHex}` }"
+            @click="emit('jump-to-time', currentVideo.id, marker.start)"
+          >
+            <div class="flex items-center mb-1">
+              <span class="time-stamp font-mono text-xs" :style="{ color: getMarkerColorHex(marker.type) }">
+                {{ formatTime(marker.start) }} - {{ formatTime(marker.end) }}
+              </span>
+            </div>
+            <p class="text-gray-800 text-base font-medium truncate">{{ marker.label }}</p>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* (Style 區塊保持不變) */
 /* =========================================== */
 /* ## 🎥 單一影片詳細模式 (Detail View) 相關 */
 /* =========================================== */
