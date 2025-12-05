@@ -124,13 +124,38 @@ export function usePlayer() {
         return `${min}:${remainingSec < 10 ? '0' : ''}${remainingSec}`;
     }
 
+    /**
+     * 統一從 MouseEvent 或 TouchEvent 中提取 clientX
+     * @param {MouseEvent | TouchEvent} event
+     * @returns {number}
+     */
+    function getClientX(event) {
+        // 檢查是否有觸控點 (適用於 TouchEvent)
+        if (event.touches && event.touches.length > 0) {
+            return event.touches[0].clientX;
+        }
+        // 否則視為 MouseEvent
+        return event.clientX;
+    }
+
+    /**
+     * 從事件中計算出時間軸上的時間
+     * @param {MouseEvent | TouchEvent} event
+     * @param {number} videoDuration
+     * @returns {number}
+     */
     function getTimelineTimeFromEvent(event, videoDuration) {
         if (videoDuration === 0) return 0;
+
+        const clientX = getClientX(event);
+
         const timeline = event.currentTarget;
         const rect = timeline.getBoundingClientRect();
-        const clickX = event.clientX - rect.left;
+
+        const clickX = clientX - rect.left;
         const width = rect.width;
         const percentage = Math.min(1, Math.max(0, clickX / width));
+
         return Math.floor(percentage * videoDuration);
     }
 
@@ -570,7 +595,11 @@ export function usePlayer() {
     }
 
     function handleRangeStart(event) {
-        if (event.button !== 0 || event.target.closest('.timeline-range-marker')) return;
+        // 確保點擊不是發生在已有的標記上
+        if (event.target.closest('.timeline-range-marker')) return;
+
+        // 排除非左鍵的滑鼠事件 (觸控事件沒有 event.button，所以不會被排除)
+        if (event.button !== undefined && event.button !== 0) return;
 
         const time = getTimelineTimeFromEvent(event, currentVideo.value.duration);
 
@@ -589,6 +618,9 @@ export function usePlayer() {
         if (!rangeData.value.isSelecting) return;
         if (!currentVideo.value) return;
 
+        // 避免在拖曳中途釋放滑鼠鍵/手指時觸發不必要的移動 (僅適用於滑鼠)
+        if (event.buttons !== undefined && event.buttons === 0 && !event.touches) return;
+
         const time = getTimelineTimeFromEvent(event, currentVideo.value.duration);
         rangeData.value.selectionEnd = time;
 
@@ -597,6 +629,7 @@ export function usePlayer() {
         currentVideo.value.currentTime = time;
         const player = loadedPlayers.get(currentVideo.value.id);
         if (player && typeof player.seekTo === 'function') {
+            // 使用 false 進行快速定位，不中斷播放
             player.seekTo(time, false);
         }
     }
@@ -726,6 +759,6 @@ export function usePlayer() {
 
         // 標記類型管理
         getOrCreateMarkerType,
-        createNewMarkerType, // <<< 新增的類型創建函數
+        createNewMarkerType,
     };
 }
