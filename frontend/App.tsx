@@ -237,6 +237,29 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteVideo = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // 防止觸發影片選擇
+    const video = videos.find(v => v.id === id);
+    const videoMarkers = markers.filter(m => m.videoId === id);
+    const markerCount = videoMarkers.length;
+    
+    const confirmMessage = markerCount > 0
+      ? `確定要刪除這個影片嗎？這將同時刪除 ${markerCount} 個相關的 markers。`
+      : '確定要刪除這個影片嗎？';
+    
+    if (confirm(confirmMessage)) {
+      await storage.deleteVideo(id);
+      // 更新狀態：刪除影片和相關的 markers
+      setVideos(prev => prev.filter(v => v.id !== id));
+      setMarkers(prev => prev.filter(m => m.videoId !== id));
+      
+      // 如果刪除的是當前正在查看的影片，返回列表頁面
+      if (activeVideoId === id) {
+        handleGoBack();
+      }
+    }
+  };
+
   const handleSaveBpm = async (bpm: number) => {
     if (activeVideoId && activeVideo) {
       const updatedVideo = { ...activeVideo, bpm };
@@ -354,13 +377,24 @@ const App: React.FC = () => {
               >
                 {/* Left: Info */}
                 <div className="flex-1">
-                  <div className="flex items-center justify-between md:justify-start gap-3 mb-1">
-                    {renderVideoTitle(video)}
-                    {video.bpm > 0 && (
-                      <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
-                        {video.bpm} BPM
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {renderVideoTitle(video)}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {video.bpm > 0 && (
+                        <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
+                          {video.bpm} BPM
+                        </span>
+                      )}
+                      <button 
+                        onClick={(e) => handleDeleteVideo(video.id, e)}
+                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                        title="刪除影片"
+                      >
+                        <Icons.Trash className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="flex items-center text-sm text-slate-500 font-mono gap-4 mb-3">

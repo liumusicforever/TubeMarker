@@ -1,0 +1,30 @@
+{
+  "videos": [],
+  "markers": [],
+  "types": [
+    {
+      "id": "question",
+      "name": "Question",
+      "color": "bg-blue-500",
+      "textColor": "text-white"
+    },
+    {
+      "id": "summary",
+      "name": "Summary",
+      "color": "bg-yellow-400",
+      "textColor": "text-yellow-900"
+    },
+    {
+      "id": "action",
+      "name": "Action",
+      "color": "bg-red-500",
+      "textColor": "text-white"
+    },
+    {
+      "id": "reference",
+      "name": "Reference",
+      "color": "bg-green-500",
+      "textColor": "text-white"
+    }
+  ]
+}
