@@ -1,0 +1,5 @@
+{
+  "name": "YouTube Timeline Marker Tool",
+  "description": "A specialized tool for analyzing videos, creating categorized timeline markers, and detecting BPM. Ideal for learners, content creators, and researchers.",
+  "requestFramePermissions": []
+}
