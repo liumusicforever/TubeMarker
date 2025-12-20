@@ -19,7 +19,28 @@ export interface StorageAdapter {
 }
 
 // --- API Storage Implementation ---
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 自動判斷環境：本機端使用 localhost，生產環境使用 api.taiwan-cmo.com
+const getApiBaseUrl = (): string => {
+  // 如果環境變數有設定，優先使用環境變數
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 檢查是否在本機環境（開發模式或 hostname 為 localhost）
+  const isLocalhost = 
+    import.meta.env.DEV || // Vite 開發模式
+    (typeof window !== 'undefined' && 
+     (window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '0.0.0.0'));
+  
+  // 本機端使用 localhost，生產環境使用 api.taiwan-cmo.com
+  return isLocalhost 
+    ? 'http://localhost:3001' 
+    : 'https://api.taiwan-cmo.com';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class ApiStorageAdapter implements StorageAdapter {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
