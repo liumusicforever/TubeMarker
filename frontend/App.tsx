@@ -603,16 +603,16 @@ const App: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
                  {markerTypes.map(type => (
-                   <button
-                     key={type.id}
-                     onClick={() => setSelectedTypeId(selectedTypeId === type.id ? null : type.id)}
-                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 flex items-center
-                        ${selectedTypeId === type.id 
-                          ? `${type.color} text-white border-transparent ring-2 ring-offset-1 ring-brand-300` 
-                          : `bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50`
-                        }`}
-                   >
-                     <div className={`w-2 h-2 rounded-full mr-2 ${selectedTypeId === type.id ? 'bg-white' : type.color}`} />
+                     <button
+                       key={type.id}
+                       onClick={() => setSelectedTypeId(selectedTypeId === type.id ? null : type.id)}
+                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 flex items-center
+                          ${selectedTypeId === type.id 
+                            ? `${type.color} ${type.textColor} border-transparent ring-2 ring-offset-1 ring-brand-300` 
+                            : `bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50`
+                          }`}
+                     >
+                       <div className={`w-2 h-2 rounded-full mr-2 ${selectedTypeId === type.id ? (type.textColor.replace('text-', 'bg-')) : type.color}`} />
                      {type.name}
                    </button>
                  ))}

@@ -47,43 +47,52 @@
       "end": 48.19834793592237,
       "label": "中場休息",
       "createdAt": 1766201229469
+    },
+    {
+      "id": "ew1yyx0e4",
+      "videoId": "wphzcv443",
+      "typeId": "03",
+      "start": 79.9534855745133,
+      "end": 87.94883413196463,
+      "label": "Bass 出現",
+      "createdAt": 1766201925803
     }
   ],
   "types": [
     {
       "id": "01",
       "name": "Vocal",
-      "color": "bg-blue-500",
-      "textColor": "text-white"
+      "color": "bg-yellow-400",
+      "textColor": "text-yellow-950"
     },
     {
       "id": "02",
       "name": "Guitar",
-      "color": "bg-yellow-400",
-      "textColor": "text-yellow-900"
+      "color": "bg-blue-500",
+      "textColor": "text-white"
     },
     {
       "id": "03",
       "name": "Bass",
-      "color": "bg-red-500",
+      "color": "bg-indigo-700",
       "textColor": "text-white"
     },
     {
       "id": "04",
       "name": "Drums",
-      "color": "bg-green-500",
+      "color": "bg-rose-600",
       "textColor": "text-white"
     },
     {
       "id": "05",
       "name": "Keyboard",
-      "color": "bg-orange-500",
+      "color": "bg-emerald-500",
       "textColor": "text-white"
     },
     {
       "id": "06",
       "name": "Chorus",
-      "color": "bg-purple-500",
+      "color": "bg-purple-400",
       "textColor": "text-white"
     }
   ]
