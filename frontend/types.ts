@@ -23,6 +23,7 @@ export interface VideoData {
   videoUrl: string; // For this demo, we use direct mp4 links to ensure playback
   duration: number; // seconds
   bpm?: number;
+  note?: string; // User notes for this video (1:1 relationship)
 }
 
 export type PlaybackState = 'playing' | 'paused' | 'ended';

@@ -1,29 +1,89 @@
 {
-  "videos": [],
-  "markers": [],
+  "videos": [
+    {
+      "id": "wphzcv443",
+      "title": "台東馬蘭阿美amsi 之 馬蘭情歌i na aw",
+      "customName": "馬蘭姑娘",
+      "videoUrl": "https://www.youtube.com/watch?v=j7Cg-lIpPCU&list=RDj7Cg-lIpPCU&start_radio=1",
+      "thumbnailUrl": "https://img.youtube.com/vi/j7Cg-lIpPCU/mqdefault.jpg",
+      "duration": 201,
+      "bpm": 0,
+      "note": "馬蘭姑娘的說明"
+    }
+  ],
+  "markers": [
+    {
+      "id": "sjxlwq6ba",
+      "videoId": "wphzcv443",
+      "typeId": "a11gsnmhr",
+      "start": 4.642460452713676,
+      "end": 10.058664314212965,
+      "label": "吉他",
+      "createdAt": 1766201005760
+    },
+    {
+      "id": "eq7oowjw0",
+      "videoId": "wphzcv443",
+      "typeId": "02",
+      "start": 1.0316578783808168,
+      "end": 2.031657878380817,
+      "label": "前奏開始",
+      "createdAt": 1766201187163
+    },
+    {
+      "id": "aziigrh7i",
+      "videoId": "wphzcv443",
+      "typeId": "01",
+      "start": 17.02235499328348,
+      "end": 18.02235499328348,
+      "label": "主唱",
+      "createdAt": 1766201209420
+    },
+    {
+      "id": "ysm8cmh9k",
+      "videoId": "wphzcv443",
+      "typeId": "01",
+      "start": 47.19834793592237,
+      "end": 48.19834793592237,
+      "label": "中場休息",
+      "createdAt": 1766201229469
+    }
+  ],
   "types": [
     {
-      "id": "question",
-      "name": "Question",
+      "id": "01",
+      "name": "Vocal",
       "color": "bg-blue-500",
       "textColor": "text-white"
     },
     {
-      "id": "summary",
-      "name": "Summary",
+      "id": "02",
+      "name": "Guitar",
       "color": "bg-yellow-400",
       "textColor": "text-yellow-900"
     },
     {
-      "id": "action",
-      "name": "Action",
+      "id": "03",
+      "name": "Bass",
       "color": "bg-red-500",
       "textColor": "text-white"
     },
     {
-      "id": "reference",
-      "name": "Reference",
+      "id": "04",
+      "name": "Drums",
       "color": "bg-green-500",
+      "textColor": "text-white"
+    },
+    {
+      "id": "05",
+      "name": "Keyboard",
+      "color": "bg-orange-500",
+      "textColor": "text-white"
+    },
+    {
+      "id": "06",
+      "name": "Chorus",
+      "color": "bg-purple-500",
       "textColor": "text-white"
     }
   ]

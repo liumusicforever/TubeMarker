@@ -43,6 +43,10 @@ const App: React.FC = () => {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
   const [newTypeInput, setNewTypeInput] = useState('');
   
+  // --- Note State ---
+  const [noteInput, setNoteInput] = useState<string>('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  
   // --- Search & Filter State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTypeId, setFilterTypeId] = useState<string>('all');
@@ -128,6 +132,8 @@ const App: React.FC = () => {
         // Search in Title and Custom Name
         if (video.title.toLowerCase().includes(query)) return true;
         if (video.customName && video.customName.toLowerCase().includes(query)) return true;
+        // Search in Note
+        if (video.note && video.note.toLowerCase().includes(query)) return true;
 
         const videoMarkers = markers.filter(m => m.videoId === video.id);
         const hasMatchingMarker = videoMarkers.some(m => m.label.toLowerCase().includes(query));
@@ -267,6 +273,32 @@ const App: React.FC = () => {
       setVideos(prev => prev.map(v => v.id === activeVideoId ? updatedVideo : v));
     }
   };
+
+  // Sync note input with active video
+  useEffect(() => {
+    if (activeVideo) {
+      setNoteInput(activeVideo.note || '');
+    } else {
+      setNoteInput('');
+    }
+  }, [activeVideo]);
+
+  // Auto-save note with debounce
+  useEffect(() => {
+    if (!activeVideoId || !activeVideo) return;
+
+    const timeoutId = setTimeout(async () => {
+      if (activeVideo.note !== noteInput) {
+        setIsSavingNote(true);
+        const updatedVideo = { ...activeVideo, note: noteInput };
+        await storage.updateVideo(updatedVideo);
+        setVideos(prev => prev.map(v => v.id === activeVideoId ? updatedVideo : v));
+        setIsSavingNote(false);
+      }
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [noteInput, activeVideoId, activeVideo]);
 
   // --- Views ---
 
@@ -475,6 +507,36 @@ const App: React.FC = () => {
            </div>
            
            <div className="w-20 md:hidden"></div> {/* Spacer mobile */}
+        </div>
+
+        {/* Note Editor Section */}
+        <div className="max-w-7xl w-full mx-auto px-4 md:px-6 pt-4 md:pt-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Icons.FileText className="w-5 h-5 text-slate-500" />
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Video Notes</h3>
+              </div>
+              {isSavingNote && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Icons.Loader className="w-3 h-3 animate-spin" />
+                  Saving...
+                </span>
+              )}
+            </div>
+            <textarea
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              placeholder="Add your notes about this video..."
+              className="w-full min-h-[100px] px-4 py-3 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-y"
+              rows={3}
+            />
+            {noteInput && (
+              <p className="text-xs text-slate-400 mt-2">
+                {noteInput.length} characters
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
