@@ -29,6 +29,9 @@ interface TimelineTrackProps {
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: () => void;
   onMouseLeave: () => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
   onMarkerClick: (marker: Marker) => void;
   getPositionPercent: (time: number) => number;
 }
@@ -48,6 +51,9 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
   onMouseMove,
   onMouseUp,
   onMouseLeave,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
   onMarkerClick,
   getPositionPercent,
 }) => {
@@ -61,6 +67,9 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {/* Playback Progress */}
       <div 
@@ -149,6 +158,17 @@ const Timeline: React.FC<TimelineProps> = ({
     return percentage * duration;
   };
 
+  // Helper to get time from touch event
+  const getTimeFromTouchEvent = (ref: React.RefObject<HTMLDivElement>, e: React.TouchEvent) => {
+    if (!ref.current) return 0;
+    const rect = ref.current.getBoundingClientRect();
+    const touch = e.touches[0] || e.changedTouches[0];
+    if (!touch) return 0;
+    const x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    return percentage * duration;
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     const time = getTimeFromEvent(timelineRef, e);
 
@@ -192,6 +212,47 @@ const Timeline: React.FC<TimelineProps> = ({
         handleMouseUp();
     }
     setHoverTime(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    const time = getTimeFromTouchEvent(timelineRef, e);
+
+    if (selectedTypeId) {
+      // Start creating a marker range
+      setIsDragging(true);
+      setDragStart(time);
+      setDragEnd(time);
+    } else {
+      // Just seek
+      onSeek(time);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    const time = getTimeFromTouchEvent(timelineRef, e);
+    setHoverTime(time);
+
+    if (isDragging && dragStart !== null) {
+      setDragEnd(time);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (isDragging && dragStart !== null && dragEnd !== null) {
+      const start = Math.min(dragStart, dragEnd);
+      const end = Math.max(dragStart, dragEnd);
+      
+      // If the drag was very short (click), make it at least 1 second or a point marker
+      const finalEnd = (end - start < 0.5) ? start + 1 : end;
+      
+      onAddMarker(start, finalEnd);
+    }
+    setIsDragging(false);
+    setDragStart(null);
+    setDragEnd(null);
   };
 
   // Rendering Helpers
@@ -258,6 +319,9 @@ const Timeline: React.FC<TimelineProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onMarkerClick={onMarkerClick}
         getPositionPercent={getPositionPercent}
       />
@@ -281,6 +345,27 @@ const Timeline: React.FC<TimelineProps> = ({
 
             const handleTypeMouseMove = (e: React.MouseEvent) => {
               const time = getTimeFromEvent(typeTimelineRef, e);
+              setHoverTime(time);
+              if (isDragging && dragStart !== null && selectedTypeId === type.id) {
+                setDragEnd(time);
+              }
+            };
+
+            const handleTypeTouchStart = (e: React.TouchEvent) => {
+              e.preventDefault();
+              const time = getTimeFromTouchEvent(typeTimelineRef, e);
+              if (selectedTypeId === type.id) {
+                setIsDragging(true);
+                setDragStart(time);
+                setDragEnd(time);
+              } else {
+                onSeek(time);
+              }
+            };
+
+            const handleTypeTouchMove = (e: React.TouchEvent) => {
+              e.preventDefault();
+              const time = getTimeFromTouchEvent(typeTimelineRef, e);
               setHoverTime(time);
               if (isDragging && dragStart !== null && selectedTypeId === type.id) {
                 setDragEnd(time);
@@ -312,6 +397,9 @@ const Timeline: React.FC<TimelineProps> = ({
                   onMouseMove={handleTypeMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseLeave}
+                  onTouchStart={handleTypeTouchStart}
+                  onTouchMove={handleTypeTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   onMarkerClick={onMarkerClick}
                   getPositionPercent={getPositionPercent}
                 />
